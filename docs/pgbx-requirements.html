@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PGBX App: Requirements from PGBX</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font: 10.5pt/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #17241C; margin: 0; }
+  h1 { font-size: 20pt; margin: 0 0 2px; color: #0E3B25; }
+  .sub { color: #5B6B61; margin: 0 0 14px; }
+  h2 { font-size: 12.5pt; color: #0E3B25; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #C9A24B; }
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 6px; page-break-inside: auto; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid #E3E7E2; }
+  th { background: #F3F1EA; font-size: 9pt; text-transform: uppercase; letter-spacing: .04em; color: #4A574F; }
+  tr { page-break-inside: avoid; }
+  td:first-child { width: 4%; color: #8A968E; }
+  td:nth-child(2) { width: 30%; font-weight: 600; }
+  td:last-child { width: 14%; }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 8.5pt; font-weight: 600; }
+  .must { background: #FBE3DC; color: #9A2D12; }
+  .soon { background: #FBF0D5; color: #7A5A0B; }
+  .later { background: #E3EFE8; color: #1E5B3A; }
+  .box { background: #F3F1EA; border-left: 3px solid #C9A24B; padding: 8px 12px; margin: 10px 0; }
+  .foot { margin-top: 22px; color: #5B6B61; font-size: 9pt; }
+</style>
+</head>
+<body>
+<h1>PGBX App: What We Need from PGBX</h1>
+<p class="sub">Prepared by DXL Solutions · 16 November 2026</p>
+
+<div class="box"><b>Where we are:</b> the PGBX customer app (Android, iPhone and web), the admin panel for PGBX staff and the
+dealer app are built and tested. The app is in closed testing on Google Play. To go live with real customers, we need the
+items below from PGBX.<br><br>
+<span class="tag must">Needed first</span> blocks launch &nbsp;
+<span class="tag soon">Needed soon</span> needed before the real money pilot &nbsp;
+<span class="tag later">Before launch</span> needed before the public release</div>
+
+<h2>1. Legal and approvals</h2>
+<table>
+<tr><th>#</th><th>Item</th><th>Details</th><th>Priority</th></tr>
+<tr><td>1</td><td>Authorisation letter</td><td>A signed letter on PGBX letterhead allowing DXL Solutions to publish and manage the PGBX app on the Google Play Store and Apple App Store on PGBX's behalf.</td><td><span class="tag must">Needed first</span></td></tr>
+<tr><td>2</td><td>Licence or registration documents</td><td>PGBX's legal entity name and registration number, and the licence or registration that allows PGBX to deal in precious metals. Both stores ask for this for finance apps.</td><td><span class="tag must">Needed first</span></td></tr>
+<tr><td>3</td><td>Shariah approval</td><td>Written approval from PGBX's Shariah adviser or board, with the adviser's name and date. Until then the app does not show a "Shariah compliant" badge.</td><td><span class="tag later">Before launch</span></td></tr>
+<tr><td>4</td><td>Legal review of terms and privacy policy</td><td>PGBX's lawyer to review the draft Terms of Use and Privacy Policy (already written) and confirm the items marked for PGBX.</td><td><span class="tag later">Before launch</span></td></tr>
+<tr><td>5</td><td>Contact details</td><td>Official support phone and WhatsApp, support email, privacy contact, and the website or domain the app should use (for example app.pgbx.com.pk).</td><td><span class="tag soon">Needed soon</span></td></tr>
+</table>
+
+<h2>2. Service providers (PGBX chooses and signs up)</h2>
+<table>
+<tr><th>#</th><th>Item</th><th>Details</th><th>Priority</th></tr>
+<tr><td>6</td><td>Payment gateway</td><td>Which gateway customers will pay through (cards, bank transfer, JazzCash, Easypaisa or Raast). PGBX opens the merchant account; we connect it (about 2 to 4 days).</td><td><span class="tag must">Needed first</span></td></tr>
+<tr><td>7</td><td>Identity check (CNIC) provider</td><td>A provider for CNIC and selfie checks, required before a customer's first purchase. We connect it (about 3 to 5 days).</td><td><span class="tag must">Needed first</span></td></tr>
+<tr><td>8</td><td>SMS provider</td><td>For login codes sent to customers' phones. A local Pakistani SMS provider is cheapest; Twilio also works.</td><td><span class="tag soon">Needed soon</span></td></tr>
+<tr><td>9</td><td>Hosting and database accounts</td><td>Vercel (hosting) and Supabase (database) accounts in PGBX's name, or approval for DXL to run them and bill PGBX.</td><td><span class="tag soon">Needed soon</span></td></tr>
+</table>
+
+<h2>3. Business details for the app</h2>
+<table>
+<tr><th>#</th><th>Item</th><th>Details</th><th>Priority</th></tr>
+<tr><td>10</td><td>Products and pricing</td><td>Bar sizes sold, PGBX's premium on each product, and the buy/sell spread.</td><td><span class="tag soon">Needed soon</span></td></tr>
+<tr><td>11</td><td>Limits and fees</td><td>Per order and daily purchase limits, collection fee, storage fee or time limit, gift and appraisal charges.</td><td><span class="tag soon">Needed soon</span></td></tr>
+<tr><td>12</td><td>Payout and refund times</td><td>How quickly PGBX pays customers who sell back, and the bank account PGBX pays from.</td><td><span class="tag soon">Needed soon</span></td></tr>
+<tr><td>13</td><td>Dealers</td><td>List of dealers: name, address, map location, opening hours, contact person.</td><td><span class="tag soon">Needed soon</span></td></tr>
+<tr><td>14</td><td>Opening stock</td><td>Stock of each bar at each dealer and in the vault, with serial numbers.</td><td><span class="tag soon">Needed soon</span></td></tr>
+<tr><td>15</td><td>Record keeping</td><td>How long customer records must be kept by law after an account closes.</td><td><span class="tag later">Before launch</span></td></tr>
+</table>
+
+<h2>4. People and operations</h2>
+<table>
+<tr><th>#</th><th>Item</th><th>Details</th><th>Priority</th></tr>
+<tr><td>16</td><td>Staff for the admin panel</td><td>Names and emails for: administrator, operations (orders, refunds, payouts), support (confirms rates in chat). Each needs an authenticator app on their phone.</td><td><span class="tag soon">Needed soon</span></td></tr>
+<tr><td>17</td><td>Dealer counter staff</td><td>One login per dealer counter, plus a short training session on handing over bars.</td><td><span class="tag soon">Needed soon</span></td></tr>
+<tr><td>18</td><td>Support hours</td><td>Hours when PGBX support will answer rate chats. Every purchase waits for a rate confirmation, including during the store review.</td><td><span class="tag soon">Needed soon</span></td></tr>
+<tr><td>19</td><td>Testers</td><td>PGBX staff with Android phones (Gmail address each) to join the closed test and try the app.</td><td><span class="tag must">Needed first</span></td></tr>
+<tr><td>20</td><td>Real money pilot</td><td>Approval for a few small real purchases, one collection and one sell back before launch.</td><td><span class="tag later">Before launch</span></td></tr>
+</table>
+
+<h2>Timeline once these arrive</h2>
+<table>
+<tr><th>#</th><th>Stage</th><th>Work</th><th>Time</th></tr>
+<tr><td>1</td><td>Setup</td><td>New app in testing, database and settings set up</td><td>Week 1</td></tr>
+<tr><td>2</td><td>Connections</td><td>Payment gateway and identity checks connected; testing with PGBX staff and dealers</td><td>Weeks 1 to 2</td></tr>
+<tr><td>3</td><td>Pilot</td><td>Real money pilot and fixes</td><td>Weeks 2 to 3</td></tr>
+<tr><td>4</td><td>Launch</td><td>Store reviews (Google and Apple) and public release</td><td>Weeks 3 to 4</td></tr>
+</table>
+
+<p class="foot">Estimated running costs: about PKR 11,500 to start and PKR 76,600 per month for about 1,000 active
+customers (hosting, database, SMS and identity checks), plus payment gateway fees as a percentage of sales.<br>
+Questions: DXL Solutions.</p>
+</body>
+</html>

@@ -5,3 +5,8 @@ node_modules
 dist
 .env*
 !.env.example
+
+# Android upload key: never commit
+signing/
+*.jks
+*.keystore

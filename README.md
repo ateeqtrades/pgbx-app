@@ -373,8 +373,8 @@ Cloudflare, because the apps run from `capacitor://localhost` (iOS) and `https:/
 identity provider with in-app camera capture is added: `NSCameraUsageDescription` in `Info.plist`, `CAMERA` in the
 Android manifest, and `camera=()` in the `Permissions-Policy` header must change.
 
-Before a store release PGBX needs: Apple and Google developer accounts in PGBX's name, the final bundle ID
-(`pk.com.pgbx.app` is a placeholder), a Firebase project for push, store screenshots, and the privacy answers. The iOS app is iPhone-only (no iPad layout to
+The apps are published under DXL Solutions' Apple and Google developer accounts with the app ID `com.dxl.pgbx` (the
+Play Store listing uses it, so it can't change). A release also needs a Firebase project for push, store screenshots, and the privacy answers. The iOS app is iPhone-only (no iPad layout to
 review). `mobile/ios/App/App/PrivacyInfo.xcprivacy` declares the app's own "required reason" API use (file timestamps)
 and no tracking; check it again whenever a plugin or SDK is added.
 
@@ -382,8 +382,7 @@ and no tracking; check it again whenever a plugin or SDK is added.
 
 * **`app.config.json`** is the one place for the app's name, app ID (bundle ID), API domain, version and build number.
   `npm run build:app` writes it into the iOS and Android projects, the web manifest, the security policy and the app.
-  Change the placeholder app ID `pk.com.pgbx.app` before the first store upload (it can't change afterwards) and raise
-  `build` for every upload.
+  The app ID is `com.dxl.pgbx` (fixed by the Play Store listing; don't change it). Raise `build` for every upload.
 * **Production bundle**: the build makes one minified file (`live/app.js`, also used by the phone apps) with the demo
   code removed: about 250 KB instead of 380 KB in three files.
 * **`npm run launch:check`** (with the production settings, e.g. `node --env-file=.env.production scripts/launch-check.mjs`)

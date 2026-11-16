@@ -4,7 +4,7 @@ android {
     namespace = "pk.com.pgbx.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "pk.com.pgbx.app"
+        applicationId "com.dxl.pgbx"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Each store upload needs a higher versionCode: ./gradlew bundleRelease -PversionCode=12 -PversionName=1.2.0

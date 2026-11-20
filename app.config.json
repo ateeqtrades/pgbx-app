@@ -4,6 +4,6 @@
   "appId": "com.dxl.pgbx",
   "apiOrigin": "https://pgbx-app.vercel.app",
   "version": "1.0.0",
-  "build": 1,
+  "build": 3,
   "termsVersion": "1.0"
 }

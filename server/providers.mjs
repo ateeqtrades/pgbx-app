@@ -2,6 +2,7 @@
 // explicitly, so a misconfigured production server can never accept fake logins, payments or identity checks.
 //
 //   SMS login codes   Twilio Verify       TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID   (test: OTP_TEST_MODE=1, code 123456)
+//                     or Firebase Auth    FIREBASE_WEB_CONFIG (the web app's public firebaseConfig, JSON)
 //   Human check       Cloudflare Turnstile TURNSTILE_SITE_KEY, TURNSTILE_SECRET                              (optional; skipped when unset)
 //   Payments          PAYMENT_PROVIDER + PAYMENT_WEBHOOK_SECRET (HMAC-SHA256 signed webhooks)                 (test: PAYMENT_PROVIDER=sandbox)
 //   Identity checks   KYC_PROVIDER + KYC_WEBHOOK_SECRET                                                       (test: KYC_PROVIDER=sandbox)
@@ -39,9 +40,52 @@ export function reviewLogin(phone, code) {
   const a = Buffer.from(String(code)), b = Buffer.from(m[2]);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+// Firebase Authentication (phone): the app sends and checks the code with Firebase, then hands the server Firebase's
+// signed ID token. The server checks the signature against Google's published keys, the project, the times and the
+// phone number before opening a PGBX session.
+export function firebaseConfig() {
+  try { const c = JSON.parse(env('FIREBASE_WEB_CONFIG') || 'null'); return c && /^[a-z0-9-]+$/.test(c.projectId) && c.apiKey && c.appId ? c : null; }
+  catch (e) { return null; }
+}
+const GOOGLE_KEYS = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
+let googleKeys = { at: 0, maxAge: 0, keys: {} };
+export const firebaseKeys = { fetch: async () => {       // replaceable in tests
+  const r = await fetch(GOOGLE_KEYS, { signal: AbortSignal.timeout(8000) });
+  const maxAge = Number((/max-age=(\d+)/.exec(r.headers.get('cache-control') || '') || [])[1] || 3600);
+  return { keys: await r.json(), maxAge };
+} };
+async function keyFor(kid) {
+  if (!googleKeys.keys[kid] || Date.now() - googleKeys.at > googleKeys.maxAge * 1000) {
+    const k = await firebaseKeys.fetch().catch(() => null);
+    if (k && k.keys) googleKeys = { at: Date.now(), maxAge: Math.min(k.maxAge, 21600), keys: k.keys };
+  }
+  return googleKeys.keys[kid] || null;
+}
+const b64json = s => JSON.parse(Buffer.from(s, 'base64url').toString('utf8'));
+// Returns the verified national number (e.g. 3001234567), or null
+export async function verifyFirebaseToken(token, projectId) {
+  if (typeof token !== 'string' || token.length > 4096) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  let head, claims;
+  try { head = b64json(parts[0]); claims = b64json(parts[1]); } catch (e) { return null; }
+  if (head.alg !== 'RS256' || typeof head.kid !== 'string') return null;
+  const pem = await keyFor(head.kid);
+  if (!pem) return null;
+  let ok = false;
+  try { ok = crypto.verify('RSA-SHA256', Buffer.from(parts[0] + '.' + parts[1]), new crypto.X509Certificate(pem).publicKey, Buffer.from(parts[2], 'base64url')); }
+  catch (e) { return null; }
+  const now = Math.floor(Date.now() / 1000);
+  if (!ok || claims.aud !== projectId || claims.iss !== 'https://securetoken.google.com/' + projectId) return null;
+  if (!(claims.exp > now) || !(claims.iat <= now + 300) || !(claims.auth_time <= now + 300) || typeof claims.sub !== 'string' || !claims.sub) return null;
+  if (now - claims.auth_time > 600) return null;                     // the code was checked in the last 10 minutes
+  const m = /^\+92(3\d{9})$/.exec(claims.phone_number || '');
+  return m ? m[1] : null;
+}
+
 export const otp = {
-  get mode() { return env('TWILIO_ACCOUNT_SID') && env('TWILIO_AUTH_TOKEN') && env('TWILIO_VERIFY_SERVICE_SID') ? 'twilio' : env('OTP_TEST_MODE') === '1' ? 'test' : 'off'; },
-  channels() { return this.mode === 'twilio' ? ['sms', ...(env('OTP_WHATSAPP') === '1' ? ['whatsapp'] : [])] : this.mode === 'test' ? ['sms'] : []; },
+  get mode() { return env('TWILIO_ACCOUNT_SID') && env('TWILIO_AUTH_TOKEN') && env('TWILIO_VERIFY_SERVICE_SID') ? 'twilio' : firebaseConfig() ? 'firebase' : env('OTP_TEST_MODE') === '1' ? 'test' : 'off'; },
+  channels() { return this.mode === 'twilio' ? ['sms', ...(env('OTP_WHATSAPP') === '1' ? ['whatsapp'] : [])] : this.mode === 'test' || this.mode === 'firebase' ? ['sms'] : []; },
   async twilio(path, form) {
     const auth = Buffer.from(`${env('TWILIO_ACCOUNT_SID')}:${env('TWILIO_AUTH_TOKEN')}`).toString('base64');
     const r = await fetchJson(`https://verify.twilio.com/v2/Services/${env('TWILIO_VERIFY_SERVICE_SID')}/${path}`, {
@@ -53,6 +97,7 @@ export const otp = {
   async send(phone, channel = 'sms') {
     if (reviewLogin(phone)) return { channel };             // the store reviewer's number: no SMS is sent
     if (this.mode === 'test') return { channel };
+    if (this.mode === 'firebase') return { channel: 'sms', firebase: true };   // the app asks Firebase to send it
     if (this.mode !== 'twilio') { const e = new Error('Login codes aren’t available right now. Please try again later.'); e.status = 503; e.expose = true; throw e; }
     const d = await this.twilio('Verifications', { To: '+92' + phone, Channel: channel === 'whatsapp' ? 'whatsapp' : 'sms', Locale: 'en' });
     return { channel: d.channel || channel };

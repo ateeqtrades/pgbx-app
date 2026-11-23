@@ -7,7 +7,7 @@
 //   Scheduler   GET /cron/sweep (expiry, purge, push; Vercel Cron) with "Authorization: Bearer $CRON_SECRET"
 import { getDb } from './db.mjs';
 import * as sec from './security.mjs';
-import { otp, turnstile, payments, kyc, push, reviewLogin } from './providers.mjs';
+import { otp, turnstile, payments, kyc, push, reviewLogin, firebaseConfig, verifyFirebaseToken } from './providers.mjs';
 import { fetchLiveRates } from './rates.mjs';
 import { ALLOWED_ORIGIN } from '../api/_origin.mjs';
 
@@ -243,7 +243,7 @@ function sameOrigin(req) {
 const PUBLIC_SETTINGS = ['max_units_per_order', 'daily_limit_pkr', 'min_purchase_pkr', 'price_lock_seconds', 'rate_stale_seconds', 'redemption_valid_hours', 'redemption_fee_pkr', 'order_payment_minutes', 'micro_usd', 'micro_max_units', 'micro_min_sell_g', 'rate_chat_required', 'rate_confirm_minutes'];
 route('GET', '/config', {}, async ({ db }) => ({
   live: !!db,
-  otp: { mode: otp.mode, channels: otp.channels() },
+  otp: { mode: otp.mode, channels: otp.channels(), ...(otp.mode === 'firebase' ? { firebase: firebaseConfig() } : {}) },
   turnstileSiteKey: turnstile.siteKey,
   payments: { provider: payments.provider },
   kyc: { provider: kyc.provider },
@@ -295,20 +295,25 @@ route('POST', '/auth/otp/start', {}, async ({ db, body, req }) => {
   await limit(db, 'otp-send-h:' + phone, 3600, 3, 'Too many codes sent to this number. Try again later.');
   await limit(db, 'otp-send-ip:' + clientIp(req), 600, 5, 'Too many codes requested from this device. Try again later.');
   const r = await otp.send(phone, body.channel === 'whatsapp' && otp.channels().includes('whatsapp') ? 'whatsapp' : 'sms');
-  return { ok: true, channel: r.channel, testMode: otp.mode === 'test' };
+  return { ok: true, channel: r.channel, testMode: otp.mode === 'test', ...(r.firebase ? { firebase: true } : {}) };
 });
 
 route('POST', '/auth/otp/verify', {}, async ({ db, body, req, res }) => {
   const phone = str(body.phone).replace(/\D/g, '').replace(/^92/, '').replace(/^0/, '');
   const code = str(body.code).replace(/\D/g, '');
-  if (!PK_MOBILE.test(phone) || code.length !== 6) fail(400, 'BAD_CODE', 'Enter the 6-digit code you received.');
+  // Firebase mode: the app checked the code with Firebase and sends Firebase's signed proof of the number instead
+  const viaFirebase = otp.mode === 'firebase' && !reviewLogin(phone);
+  if (!PK_MOBILE.test(phone) || (!viaFirebase && code.length !== 6)) fail(400, 'BAD_CODE', 'Enter the 6-digit code you received.');
   await limit(db, 'otp-check-ip:' + clientIp(req), 600, 20, 'Too many attempts from this device. Try again later.');
   // Each attempt is counted before the code is checked (parallel guesses can't get past the limit), per number and
   // address: someone else guessing can't lock the owner out. The SMS provider also limits attempts per code.
   await limit(db, 'otp-try:' + phone + ':' + clientIp(req), 3600, 10, 'Too many wrong codes. Request a new code later.');
   // The store-review number is checked here, not by the SMS provider, so it has its own small daily allowance
   if (reviewLogin(phone)) await limit(db, 'review-try', 86400, 30, 'Too many attempts. Try again tomorrow.');
-  if (!(await otp.check(phone, code))) fail(400, 'WRONG_CODE', 'That code is incorrect. Check the message and try again.');
+  if (viaFirebase) {
+    const proven = await verifyFirebaseToken(str(body.firebaseToken, 4096), firebaseConfig().projectId);
+    if (proven !== phone) fail(400, 'WRONG_CODE', 'We couldn’t confirm that code. Request a new code and try again.');
+  } else if (!(await otp.check(phone, code))) fail(400, 'WRONG_CODE', 'That code is incorrect. Check the message and try again.');
   let c = await db.one(`select * from customers where phone = $1`, [phone]);
   const isNew = !c;
   if (!c) c = await db.one(`insert into customers (phone) values ($1) returning *`, [phone]);
@@ -492,10 +497,13 @@ route('POST', '/me/phone/start', { auth: 'customer' }, async ({ db, customer, bo
 route('POST', '/me/phone/verify', { auth: 'customer' }, async ({ db, customer, body }) => {
   const phone = str(body.phone).replace(/\D/g, '').replace(/^92/, '').replace(/^0/, '');
   const code = str(body.code).replace(/\D/g, '');
-  if (!PK_MOBILE.test(phone) || code.length !== 6) fail(400, 'BAD_CODE', 'Enter the 6-digit code you received.');
+  const viaFirebase = otp.mode === 'firebase';
+  if (!PK_MOBILE.test(phone) || (!viaFirebase && code.length !== 6)) fail(400, 'BAD_CODE', 'Enter the 6-digit code you received.');
   await requireRecentLogin(db, customer);
   await limit(db, 'phone-check:' + customer.id, 3600, 10, 'Too many wrong codes. Try again later.');
-  if (!(await otp.check(phone, code))) fail(400, 'WRONG_CODE', 'That code is incorrect. Check the SMS and try again.');
+  if (viaFirebase) {
+    if ((await verifyFirebaseToken(str(body.firebaseToken, 4096), firebaseConfig().projectId)) !== phone) fail(400, 'WRONG_CODE', 'We couldn’t confirm that code. Request a new code and try again.');
+  } else if (!(await otp.check(phone, code))) fail(400, 'WRONG_CODE', 'That code is incorrect. Check the SMS and try again.');
   try { await db.query(`update customers set phone = $2, phone_changed_at = now() where id = $1`, [customer.id, phone]); }
   catch (e) { if (e.code === '23505') fail(409, 'PHONE_IN_USE', 'That number is already used by another PGBX account.'); throw e; }
   // Other devices signed in to this account are signed out; this one stays signed in.

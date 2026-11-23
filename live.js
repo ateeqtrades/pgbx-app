@@ -48,7 +48,20 @@ export const isLocked = e => e instanceof LiveError && e.status === 423;
 
 // ---------- login ----------
 let siteKey = null;
-export async function config() { const c = await api('/config'); siteKey = c.turnstileSiteKey || null; return c; }
+// otp.firebase: the code is sent and checked by Firebase (firebase-login.js, loaded only when needed)
+let fbConfig = null, fbModule = null;
+export async function config() { const c = await api('/config'); siteKey = c.turnstileSiteKey || null; fbConfig = (c.otp && c.otp.mode === 'firebase' && c.otp.firebase) || null; return c; }
+const firebase = () => (fbModule = fbModule || import(/* separate file, next to this script */ new URL('firebase-login.js', import.meta.url).href)
+  .catch(e => { fbModule = null; throw new LiveError(0, 'NETWORK', 'Can’t load the login service. Check your connection and try again.'); }));
+// Firebase's own errors carry a message for the customer; a lost connection reads like any other
+const fbError = e => (e instanceof LiveError ? e : new LiveError(0, e.code === 'NETWORK' ? 'NETWORK' : 'FIREBASE', e.message));
+async function firebaseSend(phone) {
+  if (!fbConfig) await config();
+  try { await (await firebase()).sendCode(fbConfig, phone); } catch (e) { throw fbError(e); }
+}
+async function firebaseProof(code) {
+  try { return await (await firebase()).confirmCode(code); } catch (e) { throw fbError(e); }
+}
 // Human check before a code is sent (Cloudflare Turnstile), only when PGBX has switched it on. Usually invisible;
 // it shows a small checkbox only when Cloudflare is unsure.
 let tsScript = null;
@@ -73,11 +86,14 @@ function humanCheck() {
 }
 export async function sendCode(phone, channel) {
   const turnstileToken = await humanCheck();
-  return api('/auth/otp/start', { method: 'POST', body: { phone, channel, turnstileToken } });
+  const d = await api('/auth/otp/start', { method: 'POST', body: { phone, channel, turnstileToken } });   // the server's limits apply first
+  if (d.firebase) await firebaseSend(phone);
+  return d;
 }
 export const acceptTerms = version => api('/me/terms', { method: 'POST', body: { version } });
 export async function verifyCode(phone, code, terms) {
-  const d = await api('/auth/otp/verify', { method: 'POST', body: { phone, code, device: deviceName(), cookie: !NATIVE, terms } });
+  const firebaseToken = fbConfig ? await firebaseProof(code) : undefined;
+  const d = await api('/auth/otp/verify', { method: 'POST', body: { phone, code, firebaseToken, device: deviceName(), cookie: !NATIVE, terms } });
   await keepToken(NATIVE ? d.token : null);
   return d;
 }
@@ -252,8 +268,16 @@ export async function submitKyc(f) {
   return api(`/kyc/${k.check.id}/submit`, { method: 'POST', body: { cnic: f.cnic.replace(/\D/g, ''), name: f.name.trim(), dob: f.dob, expiry: f.expiry } });
 }
 export const saveProfile = f => api('/me', { method: 'PATCH', body: { name: f.name.trim(), ...(f.cnic ? { cnic: f.cnic } : {}), ...(f.dob ? { dob: f.dob } : {}), email: f.email || '', address: f.address || '' } });
-export const phoneStart = async phone => api('/me/phone/start', { method: 'POST', body: { phone, turnstileToken: await humanCheck() } });   // the same human check as login
-export const phoneVerify = (phone, code) => api('/me/phone/verify', { method: 'POST', body: { phone, code } });
+export async function phoneStart(phone) {   // the same human check as login
+  if (!fbConfig) await config().catch(() => {});      // a resumed session may not have loaded the login settings yet
+  const d = await api('/me/phone/start', { method: 'POST', body: { phone, turnstileToken: await humanCheck() } });
+  if (fbConfig) await firebaseSend(phone);
+  return d;
+}
+export async function phoneVerify(phone, code) {
+  const firebaseToken = fbConfig ? await firebaseProof(code) : undefined;
+  return api('/me/phone/verify', { method: 'POST', body: { phone, code, firebaseToken } });
+}
 export const reserve = (pid, units, dealerId) => api('/redemptions', { method: 'POST', body: { productId: pid, units, dealerId } }).then(d => redemption(d.redemption));
 export const cancelRedemption = id => api(`/redemptions/${id}/cancel`, { method: 'POST', body: {} });
 export const saveNotifPrefs = p => api('/me/notifications', { method: 'PATCH', body: p });

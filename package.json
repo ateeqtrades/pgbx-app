@@ -12,7 +12,8 @@
     "test:pg": "node --test --test-concurrency=1 tests/*.test.mjs",
     "staff:create": "node dev/create-staff.mjs",
     "build:app": "node scripts/build.mjs",
-    "launch:check": "node scripts/launch-check.mjs"
+    "launch:check": "node scripts/launch-check.mjs",
+    "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.9.11",

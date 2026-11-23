@@ -1,5 +1,5 @@
 // Database access for the API. One small interface, two engines:
-//   production  -> PostgreSQL via DATABASE_URL (Supabase: use the pooled connection string, port 6543)
+//   production  -> PostgreSQL via DATABASE_URL: Google Cloud SQL (public IP, SSL required, port 5432) or Supabase (pooled string, port 6543)
 //   tests / dev -> PGlite (PostgreSQL compiled to WebAssembly, in memory): server/memory-db.mjs
 // Business rules live in SQL functions (supabase/migrations), so both engines behave the same.
 const INT8 = 20, JSON_OID = 114, JSONB_OID = 3802;

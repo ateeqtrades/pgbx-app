@@ -11,3 +11,4 @@ signing/
 *.jks
 *.keystore
 keystore.properties
+tests/e2e/shots/

@@ -554,7 +554,7 @@ function Login({ S, note, intent, hasPin, onDone, onBrowse, onPin, onRetry }) {
     <div class="sheet">
       ${note && html`<div class="notice warning" style="margin:0 0 16px;width:100%" role="alert"><${Icon} n="shield" c="sm"/><span>${note}</span></div>`}
       ${!note && intent && html`<div class="notice" style="margin:0 0 16px;width:100%" role="status"><${Icon} n="info" c="sm"/><span>${intent}</span></div>`}
-      ${down && html`<div class="notice danger" style="margin:0 0 16px;width:100%" role="alert"><${Icon} n="alert" c="sm"/><span class="grow">Can’t reach the login service. Check your connection and try again.</span><button class="linkbtn sm act" onClick=${onRetry}>Retry</button></div>`}
+      ${down && html`<div class="notice danger" style="margin:0 0 16px;width:100%" role="alert"><${Icon} n="alert" c="sm"/><span class="grow">${cfg.notReady ? 'Login isn’t available yet: PGBX is finishing setting up. Please try again later.' : 'Can’t reach the login service. Check your connection and try again.'}</span><button class="linkbtn sm act" onClick=${onRetry}>Retry</button></div>`}
       ${step === 'phone' ? html`<div class=${dir === 'in' ? 'step-in' : 'step-back'} key="phone">
         <h2>Log in or sign up</h2>
         <p class="sub">Enter your Pakistani mobile number and we’ll send you a one-time code.</p>
@@ -3012,8 +3012,10 @@ function App() {
 
   // FR-A1: ask the server whether a real SMS / WhatsApp provider is connected
   // Demo mode only when the server explicitly answers configured:false; an unreachable server is an error, never a bypass.
+  // Production with the server answering but login not switched on (no database or SMS provider yet): say so, rather
+  // than blame the customer's connection
   const checkOtp = () => { set({ otpCfg: { checked: false, configured: false, channels: ['sms'] } }); otpCall().then(d => set({ otpCfg: d.error === 'unreachable' || typeof d.configured !== 'boolean' || (LIVE && !d.configured)
-    ? { checked: true, unreachable: true, configured: false, channels: [] }
+    ? { checked: true, unreachable: true, notReady: d.error !== 'unreachable' && d.configured === false, configured: false, channels: [] }
     : { checked: true, configured: d.configured, channels: d.channels && d.channels.length ? d.channels : ['sms'] } })); };
   useEffect(checkOtp, []);
 

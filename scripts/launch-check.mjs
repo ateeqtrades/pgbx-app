@@ -17,7 +17,7 @@ const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.config.json'), 'u
 
 // ---------- settings (Vercel environment variables) ----------
 if (env('VERCEL_ENV') && env('VERCEL_ENV') !== 'production') warn(`These settings are for "${env('VERCEL_ENV')}", not production.`);
-if (!env('DATABASE_URL')) block('DATABASE_URL is not set: the app has no database.');
+if (!env('DATABASE_URL') && !env('DATABASE_URL_SECRET')) block('Neither DATABASE_URL nor DATABASE_URL_SECRET is set: the app has no database.');
 else if (/supabase/.test(env('DATABASE_URL')) && !/:6543\//.test(env('DATABASE_URL'))) warn('DATABASE_URL does not use port 6543. On Supabase use the pooled (transaction) connection string.');
 else ok('Database connection string is set (pooled).');
 const twilio = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_VERIFY_SERVICE_SID'].filter(k => !env(k));

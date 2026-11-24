@@ -15,8 +15,13 @@ let shared = null;
 export function getDb() {
   if (shared) return shared;
   const url = process.env.DATABASE_URL;
-  if (!url) return null;                                     // not connected yet: the API reports live: false
-  return (shared = connectPostgres(url));
+  if (url) return (shared = connectPostgres(url));
+  // Or the connection string is kept in Google Secret Manager (server/secrets.mjs), so no password is copied into Vercel
+  const name = process.env.DATABASE_URL_SECRET;
+  if (!name) return null;                                    // not connected yet: the API reports live: false
+  return (shared = import('./secrets.mjs').then(m => m.readSecret(name)).then(u => (u ? connectPostgres(u) : null))
+    .then(db => { if (!db) shared = null; return db; })
+    .catch(e => { shared = null; console.error('Database connection string unavailable:', e.message); return null; }));   // tried again on the next request
 }
 
 export async function connectPostgres(url) {

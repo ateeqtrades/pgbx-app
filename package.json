@@ -17,10 +17,10 @@
   },
   "dependencies": {
     "@vercel/functions": "^3.9.11",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "@electric-sql/pglite": "^0.5.8"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.8",
     "esbuild": "^0.25.10",
     "firebase": "^11.10.0"
   }

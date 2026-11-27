@@ -3,7 +3,11 @@
 // in the browser.
 import { html, useState, useEffect, useRef, useCallback } from '../vendor/htm-preact-standalone-3.1.1.module.js';
 
-export const API = '/api/v1';
+// The demo copies (/admin-demo, /dealer-demo) set window.PGBX_DEMO: they use the demo API with sample data and keep
+// their own session token for the tab, so they never touch a real sign-in
+export const DEMO = typeof window !== 'undefined' && window.PGBX_DEMO === true;
+export const API = DEMO ? '/api/demo/v1' : '/api/v1';
+const demoToken = () => { try { return sessionStorage.getItem('pgbx-demo-staff') || ''; } catch (e) { return ''; } };
 
 export class ApiError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
@@ -14,8 +18,8 @@ export async function api(path, { method = 'GET', body, timeout = 15000, quiet =
   let r;
   try {
     r = await fetch(API + path, {
-      method, credentials: 'same-origin', signal: ctl.signal,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
+      method, credentials: DEMO ? 'omit' : 'same-origin', signal: ctl.signal,
+      headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(DEMO && demoToken() ? { Authorization: 'Bearer ' + demoToken() } : {}) },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch (e) {
@@ -171,7 +175,29 @@ export function Brand({ sub }) {
 
 // ---------- sign-in ----------
 // Step 1 email + password, step 2 authenticator code. `roles` limits which staff can use this tool.
-export function SignIn({ tool, roles, onIn, notice }) {
+// Demo: pick a role instead of signing in
+const ROLE_LABEL = { admin: ['Admin', 'Everything, including settings and staff'], ops: ['Operations', 'Orders, collections, stock, payouts and refunds'],
+  support: ['Support', 'Rate chats: answer customers and confirm final rates'], dealer: ['Dealer', 'Collection counter: hand over bars'] };
+function DemoSignIn({ tool, roles, onIn }) {
+  const [busy, setBusy] = useState(null), [err, setErr] = useState(null);
+  const pick = async role => {
+    setBusy(role); setErr(null);
+    try { const d = await api('/demo/session', { method: 'POST', body: { role } }); try { sessionStorage.setItem('pgbx-demo-staff', d.token); } catch (e) { } onIn(); }
+    catch (e) { setErr(e.message); } finally { setBusy(null); }
+  };
+  return html`<main class="signin">
+    <div class="card">
+      <${Brand} sub=${tool + ' · demo'} />
+      <h1>Try the ${tool.toLowerCase()}</h1>
+      <p class="muted">A demo with sample customers and orders. Nothing here is real, and it resets every few hours. Choose a role to look around.</p>
+      ${err && html`<div class="note err" role="alert" style="margin-bottom:14px">${err}</div>`}
+      ${roles.map(r => html`<button class="btn block" style="margin-bottom:10px;text-align:left;height:auto;padding:12px 16px;display:block" disabled=${!!busy} onClick=${() => pick(r)}>
+        <b>${busy === r ? 'Opening…' : ROLE_LABEL[r][0]}</b><div style="font-weight:400;font-size:13px;opacity:.85">${ROLE_LABEL[r][1]}</div></button>`)}
+    </div>
+  </main>`;
+}
+export function SignIn(props) { return DEMO ? DemoSignIn(props) : RealSignIn(props); }
+function RealSignIn({ tool, roles, onIn, notice }) {
   const [step, setStep] = useState('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -231,7 +257,7 @@ export function useStaff() {
     addEventListener('pgbx-signed-out', out); addEventListener('pgbx-password-change', pw);
     return () => { removeEventListener('pgbx-signed-out', out); removeEventListener('pgbx-password-change', pw); };
   }, []);
-  const signOut = async () => { await api('/staff/logout', { method: 'POST', body: {} }).catch(() => {}); setNotice(null); setMe(null); };
+  const signOut = async () => { await api('/staff/logout', { method: 'POST', body: {} }).catch(() => {}); if (DEMO) try { sessionStorage.removeItem('pgbx-demo-staff'); } catch (e) { } setNotice(null); setMe(null); };
   return { me, notice, signIn: () => { setNotice(null); check(); }, signOut, passwordChanged: () => setMe(m => ({ ...m, mustChangePassword: false })) };
 }
 

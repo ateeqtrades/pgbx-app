@@ -53,6 +53,7 @@ const BLOCKED = /^\/(server|dev|tests|supabase|node_modules|mobile|scripts|api|\
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname.startsWith('/api/v1')) return handle(req, res, { db, fetchRates });
+  if (url.pathname.startsWith('/api/demo/v1')) return (await import('../api/demo.mjs')).default(req, res);   // the clickable staff demo
   if (url.pathname === '/api/rates') return ratesHandler(req, res);
   if (url.pathname === '/api/history') return historyHandler(req, res);
   if (url.pathname === '/api/otp') return otpHandler(req, res);

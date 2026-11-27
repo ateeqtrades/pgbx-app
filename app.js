@@ -11,7 +11,7 @@ const LIVE = BUILD === 'production';
 // Fonts: Apple system families (SF Pro, SF Compact, SF Mono, New York) via CSS; nothing is downloaded.
 // Requirement IDs (FR-*, NFR-*, CMP-*) live in code comments only; customers never see them.
 const TERMS_VERSION = '1.0';                // the terms and privacy policy customers accept (app.config.json termsVersion)
-const APP_VERSION = LIVE ? '1.0.2' : '0.9 (prototype)';
+const APP_VERSION = LIVE ? '1.0.3' : '0.9 (prototype)';
 
 /* ============================================================
    Constants (SRS references in comments)

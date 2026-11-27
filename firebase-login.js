@@ -10,13 +10,14 @@ import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, signOut } from 'fire
 
 let auth = null, verifier = null, pending = null;
 
+// A reCAPTCHA answer can be used once, so every code request gets a fresh, invisible check in a new box
+// (logging out and in again, or asking for another code, would otherwise reuse a spent one)
 function setup(config) {
   if (!auth) { auth = getAuth(initializeApp(config, 'pgbx')); auth.languageCode = 'en'; }
-  if (!verifier) {
-    let box = document.getElementById('pgbx-recaptcha');
-    if (!box) { box = document.createElement('div'); box.id = 'pgbx-recaptcha'; document.body.appendChild(box); }
-    verifier = new RecaptchaVerifier(auth, box, { size: 'invisible' });
-  }
+  if (verifier) { try { verifier.clear(); } catch (e) { } verifier = null; }
+  const old = document.getElementById('pgbx-recaptcha'); if (old) old.remove();
+  const box = document.createElement('div'); box.id = 'pgbx-recaptcha'; document.body.appendChild(box);
+  verifier = new RecaptchaVerifier(auth, box, { size: 'invisible' });
 }
 
 const MESSAGES = {
@@ -29,9 +30,20 @@ const MESSAGES = {
   'auth/captcha-check-failed': 'We couldn’t confirm you’re not a robot. Please try again.',
   'auth/network-request-failed': 'Can’t reach the login service. Check your connection and try again.',
   'auth/operation-not-allowed': 'Login codes aren’t available right now. Please try again later.',
+  // Firebase's "unusual activity" block on a number after several codes in a short time; it lifts after a few hours
+  'auth/error-code:-39': 'Too many codes were requested for this number. Please try again in a few hours.',
+  'auth/invalid-app-credential': 'We couldn’t confirm you’re not a robot. Reload the page and try again.',
+  'auth/missing-app-credential': 'We couldn’t confirm you’re not a robot. Reload the page and try again.',
+  'auth/web-storage-unsupported': 'This browser blocks what the login needs. Turn off private browsing or try another browser.',
+  'auth/internal-error': 'The login service had a problem. Please try again in a minute.',
+  'auth/billing-not-enabled': 'Login codes aren’t available right now. Please try again later.',
+  'auth/missing-phone-number': 'Enter your mobile number.',
 };
 const fail = e => {
-  const err = new Error(MESSAGES[e && e.code] || 'We couldn’t send or check the code. Please try again.');
+  const code = (e && e.code) || '';
+  // An unexpected error shows Firebase's code, so a customer's screenshot tells support what happened
+  const err = new Error(MESSAGES[code] || `We couldn’t send or check the code. Please try again.${code ? ` (${code.replace(/^auth\//, '')})` : ''}`);
+  if (!MESSAGES[code]) console.warn('Firebase login error', code, e && e.message);
   err.code = e && e.code === 'auth/network-request-failed' ? 'NETWORK' : 'FIREBASE';
   err.firebaseCode = e && e.code;
   return err;
